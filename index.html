@@ -137,6 +137,13 @@
         }
         localStorage.setItem('Lekovka_LastDate_V6', todayKey);
 
+        // PWA Service Worker Registration
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js').catch(err => console.log('SW error', err));
+            });
+        }
+
         function nav(p) {
             document.querySelectorAll('[id^="p-"]').forEach(d => d.classList.add('hidden'));
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('tab-active'));
@@ -218,7 +225,6 @@
             
             localStorage.setItem('Lekovka_V6', JSON.stringify(leky)); 
             
-            // Nová funkce: Nabídka kalendáře po uložení
             if(confirm("Lék uložen. Chcete jej nyní přidat do kalendáře?")) {
                 downloadICS(data.nazev, data.casy);
             }
@@ -227,6 +233,32 @@
             nav('list'); 
         }
 
+        function downloadICS(nazev, casy) {
+            let icsContent = "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//Moje Lekovka//CS\nCALSCALE:GREGORIAN\nMETHOD:PUBLISH\n";
+            const now = new Date();
+            const dateStr = now.toISOString().split('T')[0].replace(/-/g, '');
+            
+            casy.forEach(cas => {
+                const timeStr = cas.replace(':', '') + "00";
+                icsContent += "BEGIN:VEVENT\n";
+                icsContent += `SUMMARY:Lék: ${nazev}\n`;
+                icsContent += `DTSTART:${dateStr}T${timeStr}\n`;
+                icsContent += `DTEND:${dateStr}T${timeStr}\n`;
+                icsContent += "RRULE:FREQ=DAILY\n";
+                icsContent += "BEGIN:VALARM\nTRIGGER:-PT5M\nACTION:DISPLAY\nDESCRIPTION:Čas užít lék\nEND:VALARM\n";
+                icsContent += "END:VEVENT\n";
+            });
+            
+            icsContent += "END:VCALENDAR";
+            const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `${nazev.replace(/\s+/g, '_')}.ics`;
+            link.click();
+        }
+
+        function exportAllICS() { leky.forEach(l => downloadICS(l.nazev, l.casy)); }
+
         function buildCard(l, casDnes = null) { 
             let denniPocet = l.casy.length; 
             let pocetDavek = denniPocet > 0 ? (l.sklad / (l.davka * denniPocet)) : 0; 
@@ -234,7 +266,6 @@
             let jeVzato = casDnes ? vzato[l.id + "_" + casDnes] : false; 
             let planText = l.rezim ? 'Obden ' + (l.rezim === 'sude' ? 'sudé' : 'liché') : (l.dny.length > 0 ? l.dny.join(', ') : 'Každý den');
             
-            // Oprava uvozovek pro JSON stringify v onclicku
             const casyJson = JSON.stringify(l.casy).replace(/"/g, '&quot;');
             
             return `
@@ -252,7 +283,7 @@
                         </div>
                         <div class="flex gap-2">
                             ${!casDnes ? `
-                                <button onclick="downloadICS('${l.nazev}', ${casyJson})" class="text-emerald-500/60 p-1"><span class="iconify text-xl" data-icon="lucide:calendar-plus"></span></button>
+                                <button onclick="downloadICS('${l.nazev}', ${casyJson})" class="text-emerald-400 p-1"><span class="iconify text-xl" data-icon="lucide:calendar-plus"></span></button>
                                 <button onclick="editovatLek(${l.id})" class="text-amber-500/40 p-1"><span class="iconify text-xl" data-icon="lucide:edit-3"></span></button>
                                 <button onclick="smazat(${l.id})" class="text-red-500/20 p-1"><span class="iconify text-xl" data-icon="lucide:trash-2"></span></button>
                             ` : ''}
@@ -335,26 +366,9 @@
 
         function potvrditVseVCase(cas, ids) { ids.forEach(id => potvrdit(id, cas)); }
 
-        function downloadICS(nazev, casy) {
-            let icsContent = "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//Moje Lekovka//CS\n";
-            const now = new Date();
-            const dateStr = now.toISOString().split('T')[0].replace(/-/g, '');
-            casy.forEach(cas => {
-                const timeStr = cas.replace(':', '') + "00";
-                icsContent += "BEGIN:VEVENT\n";
-                icsContent += `SUMMARY:Lék: ${nazev}\nDTSTART:${dateStr}T${timeStr}\nRRULE:FREQ=DAILY\n`;
-                icsContent += "BEGIN:VALARM\nTRIGGER:-PT5M\nACTION:DISPLAY\nEND:VALARM\nEND:VEVENT\n";
-            });
-            icsContent += "END:VCALENDAR";
-            const blob = new Blob([icsContent], { type: 'text/calendar' });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = `${nazev}.ics`;
-            link.click();
-        }
-
-        function exportAllICS() { leky.forEach(l => downloadICS(l.nazev, l.casy)); }
         function exportDat() { console.log(JSON.stringify(leky)); alert("Data jsou v konzoli (F12)."); }
+
+        function promazatHistorii() { if(confirm("Smazat historii?")) { historie = []; localStorage.setItem('Lekovka_Hist_V6', JSON.stringify(historie)); vykreslitHistorii(); } }
 
         function vykreslitHistorii() {
             let html = historie.map(h => `
@@ -371,13 +385,6 @@
         }
 
         nav('today');
-        <script>
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js')
-      .then(() => console.log("Service Worker registrován."));
-  }
-</script>
     </script>
 </body>
 </html>
-
