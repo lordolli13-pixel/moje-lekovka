@@ -1,30 +1,36 @@
-let alarmTime = null;
+let targetTime = null;
 
-// Příjem času z aplikace
+self.addEventListener('install', (e) => self.skipWaiting());
+self.addEventListener('activate', (e) => e.waitUntil(clients.claim()));
+
 self.addEventListener('message', (event) => {
-    if (event.data.type === 'SET_ALARM') {
-        alarmTime = event.data.time;
-        console.log('SW: Budík nastaven na ' + alarmTime);
+    if (event.data.type === 'START_ALARM') {
+        targetTime = event.data.time;
     }
 });
 
-// Kontrola času každých 10 sekund
 setInterval(() => {
-    if (!alarmTime) return;
-
     const n = new Date();
-    // Formát HH:mm v českém čase
-    const ted = n.toLocaleTimeString('cs-CZ', { hour: '2-digit', minute: '2-digit' });
+    // Přesný formát HH:mm
+    const h = n.getHours().toString().padStart(2, '0');
+    const m = n.getMinutes().toString().padStart(2, '0');
+    const ted = `${h}:${m}`;
 
-    console.log('SW kontrola: ' + ted + ' vs ' + alarmTime);
-
-    if (ted === alarmTime) {
-        self.registration.showNotification("BUDÍK!", {
-            body: "Čas vypršel: " + alarmTime,
-            vibrate: [500, 200, 500, 200, 500],
-            requireInteraction: true, // Notifikace nezmizí sama
-            tag: 'test-alarm' // Zamezí duplicitám
+    // Pošleme info zpět do HTML, že žijeme (uvidíš v "Poslední události")
+    self.clients.matchAll().then(clients => {
+        clients.forEach(client => {
+            client.postMessage({ type: 'TICK', time: ted });
         });
-        alarmTime = null; // Po pípnutí budík smažeme
+    });
+
+    if (targetTime && ted === targetTime) {
+        self.registration.showNotification("BUDÍK FUNGUJE!", {
+            body: `Je přesně ${ted}`,
+            icon: 'https://cdn-icons-png.flaticon.com/512/182/182414.png',
+            vibrate: [500, 100, 500, 100, 500],
+            tag: 'alarm-v1',
+            requireInteraction: true
+        });
+        targetTime = null; // Reset, aby to nepípalo celou minutu v kuse
     }
-}, 10000);
+}, 10000); // Kontrola každých 10 sekund
