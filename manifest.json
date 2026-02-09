@@ -1,13 +1,13 @@
 {
-  "name": "Moje Lékovka",
-  "short_name": "Lékovka",
-  "start_url": "index.html",
+  "name": "Test Budík",
+  "short_name": "Budík",
+  "start_url": ".",
   "display": "standalone",
   "background_color": "#0f172a",
   "theme_color": "#0f172a",
   "icons": [
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/822/822143.png",
+      "src": "https://cdn-icons-png.flaticon.com/512/182/182414.png",
       "sizes": "512x512",
       "type": "image/png"
     }
