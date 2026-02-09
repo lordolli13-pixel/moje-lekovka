@@ -4,19 +4,14 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0" />
     <title>Moje Lékovka</title>
-    
-    <link rel="icon" type="image/png" href="icon-512.png">
-    <link rel="apple-touch-icon" href="icon-512.png">
     <link rel="manifest" href="manifest.json">
-    
     <meta name="theme-color" content="#0f172a">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     
     <script src="https://code.iconify.design/3/3.1.0/iconify.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { background-color: #0f172a; color: white; font-family: sans-serif; padding: 10px; -webkit-tap-highlight-color: transparent; }
+        body { background-color: #0f172a; color: white; font-family: sans-serif; padding: 10px; }
         .sekce { background-color: #1e293b; padding: 15px; border-radius: 15px; border: 1px solid #334155; margin-bottom: 20px; }
         .policko { background: #0f172a; border: 1px solid #475569; width: 100%; padding: 12px; border-radius: 8px; color: white; margin-bottom: 10px; outline: none; }
         .label { display: block; font-size: 10px; color: #94a3b8; text-transform: uppercase; font-weight: bold; margin-bottom: 5px; }
@@ -51,17 +46,12 @@
 
         <div id="p-list" class="hidden">
             <div class="sekce border-amber-500/30">
-                <h2 class="text-[10px] font-bold text-amber-500 mb-3 uppercase tracking-widest">Upozornění a Systém</h2>
-                <div class="grid grid-cols-2 gap-2">
-                    <button id="btn-notif-master" onclick="requestNotif()" class="bg-slate-700 p-3 rounded-lg text-[10px] font-bold uppercase flex flex-col items-center gap-1 transition-all duration-300">
-                        <span id="icon-notif" class="iconify text-lg" data-icon="lucide:bell"></span> 
-                        <span id="text-notif">Zapnout</span>
-                    </button>
-                    <button onclick="testNotif()" class="bg-slate-700 active:bg-amber-600 p-3 rounded-lg text-[10px] font-bold uppercase flex flex-col items-center gap-1 transition-all">
-                        <span class="iconify text-lg" data-icon="lucide:test-tube"></span> Test
+                <h2 class="text-[10px] font-bold text-amber-500 mb-3 uppercase tracking-widest">Systém a Kalendář</h2>
+                <div class="grid grid-cols-1 gap-2">
+                    <button onclick="exportAllICS()" class="bg-slate-700 active:bg-amber-600 p-4 rounded-lg text-[11px] font-bold uppercase flex items-center justify-center gap-2 transition-all">
+                        <span class="iconify text-lg" data-icon="lucide:calendar"></span> Exportovat vše do kalendáře (ICS)
                     </button>
                 </div>
-                <div id="notif-status" class="text-[9px] text-center mt-2 text-slate-500 italic">Zjišťuji stav systému...</div>
             </div>
             <div id="seznam-vse" class="space-y-4"></div>
             <div class="mt-8 text-center">
@@ -83,26 +73,31 @@
             <div class="sekce">
                 <h2 id="edit-title" class="text-xs font-bold text-amber-500 mb-4 uppercase text-center">Nový lék</h2>
                 <input type="hidden" id="f-id">
+                
                 <label class="label">Ikona</label>
                 <div class="grid grid-cols-5 gap-2 mb-4">
-                    <div class="chip i-chip chip-active" onclick="setI(this, 'pill')"><span class="iconify text-2xl" data-icon="lucide:pill"></span></div>
-                    <div class="chip i-chip" onclick="setI(this, 'syringe')"><span class="iconify text-2xl" data-icon="lucide:syringe"></span></div>
-                    <div class="chip i-chip" onclick="setI(this, 'droplets')"><span class="iconify text-2xl" data-icon="lucide:droplets"></span></div>
-                    <div class="chip i-chip" onclick="setI(this, 'beaker')"><span class="iconify text-2xl" data-icon="lucide:beaker"></span></div>
-                    <div class="chip i-chip" onclick="setI(this, 'spray-can')"><span class="iconify text-2xl" data-icon="lucide:spray-can"></span></div>
+                    <div class="chip i-chip chip-active" data-icon="pill" onclick="setI(this, 'pill')"><span class="iconify text-2xl" data-icon="lucide:pill"></span></div>
+                    <div class="chip i-chip" data-icon="syringe" onclick="setI(this, 'syringe')"><span class="iconify text-2xl" data-icon="lucide:syringe"></span></div>
+                    <div class="chip i-chip" data-icon="droplets" onclick="setI(this, 'droplets')"><span class="iconify text-2xl" data-icon="lucide:droplets"></span></div>
+                    <div class="chip i-chip" data-icon="beaker" onclick="setI(this, 'beaker')"><span class="iconify text-2xl" data-icon="lucide:beaker"></span></div>
+                    <div class="chip i-chip" data-icon="spray-can" onclick="setI(this, 'spray-can')"><span class="iconify text-2xl" data-icon="lucide:spray-can"></span></div>
                 </div>
+
                 <label class="label">Název léku</label>
                 <input id="f-nazev" type="text" class="policko font-bold text-lg" placeholder="Zadejte název">
+
                 <div class="grid grid-cols-2 gap-3 mb-4">
                     <div><label class="label">Skladem (ks)</label><input id="f-sklad" type="number" step="0.25" class="policko" value="0"></div>
                     <div><label class="label">Dávka (ks)</label><input id="f-davka" type="number" step="0.25" class="policko" value="1"></div>
                 </div>
+
                 <label class="label">Časy (např. 08:00)</label>
                 <div class="flex gap-2 mb-2">
                     <input id="f-cas" type="time" class="policko">
                     <button onclick="addT()" class="bg-slate-700 px-4 mb-[10px] rounded-lg font-bold">+</button>
                 </div>
                 <div id="f-seznam-casu" class="flex flex-wrap gap-2 mb-4"></div>
+
                 <label class="label">Opakování (Dny)</label>
                 <div class="grid grid-cols-7 gap-1 mb-4">
                     <div class="chip d-chip" onclick="toggleD(this)">Po</div>
@@ -113,11 +108,13 @@
                     <div class="chip d-chip" onclick="toggleD(this)">So</div>
                     <div class="chip d-chip" onclick="toggleD(this)">Ne</div>
                 </div>
+
                 <label class="label">Speciální režim</label>
                 <div class="grid grid-cols-2 gap-2 mb-6">
                     <div class="chip r-chip border-dashed border-amber-500/50" onclick="toggleR(this)" data-val="liche">OBDEN LICHÉ</div>
                     <div class="chip r-chip border-dashed border-amber-500/50" onclick="toggleR(this)" data-val="sude">OBDEN SUDÉ</div>
                 </div>
+
                 <button id="btn-save" onclick="ulozit()" class="btn-take">Uložit lék</button>
                 <button id="btn-cancel" onclick="resetForm(); nav('list');" class="hidden w-full text-slate-500 text-[10px] uppercase font-bold mt-4">Zrušit editaci</button>
             </div>
@@ -129,9 +126,9 @@
         let vzato = JSON.parse(localStorage.getItem('Lekovka_Vzato_V6')) || {};
         let historie = JSON.parse(localStorage.getItem('Lekovka_Hist_V6')) || [];
         let lastCheck = localStorage.getItem('Lekovka_LastDate_V6');
-        let notifiedTimes = {}; 
         let tmpIkona = 'pill';
         let tmpCasy = [];
+
         const todayKey = new Date().toLocaleDateString();
 
         if (lastCheck && lastCheck !== todayKey) {
@@ -140,159 +137,41 @@
         }
         localStorage.setItem('Lekovka_LastDate_V6', todayKey);
 
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js').then(reg => {
-                    console.log('SW aktivní');
-                    synchronizovatSW();
-                }).catch(err => console.log('SW chyba', err));
-            });
-        }
-
-        async function synchronizovatSW() {
-            if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-                navigator.serviceWorker.controller.postMessage({
-                    type: 'UPDATE_MEDS',
-                    leky: leky
-                });
-            }
-        }
-
-        function updateNotifUI() {
-            const statusEl = document.getElementById('notif-status');
-            const btn = document.getElementById('btn-notif-master');
-            const icon = document.getElementById('icon-notif');
-            const text = document.getElementById('text-notif');
-            if (!("Notification" in window)) {
-                statusEl.innerText = "Prohlížeč nepodporuje notifikace";
-                return;
-            }
-            if (Notification.permission === 'granted') {
-                statusEl.innerText = "✓ Notifikace aktivní";
-                statusEl.className = "text-[9px] text-center mt-2 text-emerald-500 font-bold uppercase";
-                btn.classList.remove('bg-slate-700');
-                btn.classList.add('bg-emerald-600', 'text-white');
-                icon.setAttribute('data-icon', 'lucide:check-circle');
-                text.innerText = "Aktivováno";
-            } else if (Notification.permission === 'denied') {
-                statusEl.innerText = "✕ Notifikace blokovány";
-                statusEl.className = "text-[9px] text-center mt-2 text-red-500 font-bold";
-                text.innerText = "Blokováno";
-            } else {
-                statusEl.innerText = "Notifikace nejsou aktivní";
-                statusEl.className = "text-[9px] text-center mt-2 text-slate-500 italic";
-            }
-        }
-
-        function requestNotif() {
-            Notification.requestPermission().then(perm => {
-                updateNotifUI();
-                if (perm === 'granted') {
-                    new Notification("Lékovka", { body: "Upozornění byla zapnuta." });
-                    synchronizovatSW();
-                }
-            });
-        }
-
-        function testNotif() {
-            if (Notification.permission === "granted") {
-                new Notification("Test Lékovky", { body: "Takhle vypadá upozornění!" });
-            } else {
-                alert("Nejdříve zapněte notifikace!");
-            }
-        }
-
-        setInterval(() => {
-            const n = new Date();
-            const ted = n.getHours().toString().padStart(2, '0') + ":" + n.getMinutes().toString().padStart(2, '0');
-            const dJmeno = ["Ne", "Po", "Út", "St", "Čt", "Pá", "So"][n.getDay()];
-            const dCislo = n.getDate();
-            leky.forEach(l => {
-                let ok = (!l.rezim && l.dny.length === 0) || (l.dny.includes(dJmeno)) || 
-                         (l.rezim === 'liche' && dCislo % 2 !== 0) || (l.rezim === 'sude' && dCislo % 2 === 0);
-                if (ok && l.casy.includes(ted)) {
-                    const key = `${l.id}_${ted}_${todayKey}`;
-                    if (!notifiedTimes[key] && !vzato[l.id + "_" + ted]) {
-                        new Notification("Čas na lék: " + l.nazev, { body: `Dávka: ${l.davka} ks.` });
-                        notifiedTimes[key] = true;
-                    }
-                }
-            });
-        }, 60000);
-
         function nav(p) {
             document.querySelectorAll('[id^="p-"]').forEach(d => d.classList.add('hidden'));
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('tab-active'));
             document.getElementById('p-' + p).classList.remove('hidden');
             document.getElementById('t-' + p).classList.add('tab-active');
-            if(p === 'today' || p === 'list') { vykreslit(); updateNotifUI(); }
+            if(p === 'today' || p === 'list') vykreslit();
             if(p === 'hist') vykreslitHistorii();
         }
 
-        function promazatHistorii() {
-            if(confirm("Opravdu smazat?")) {
-                historie = []; vzato = {};
-                localStorage.setItem('Lekovka_Hist_V6', JSON.stringify(historie));
-                localStorage.setItem('Lekovka_Vzato_V6', JSON.stringify(vzato));
-                vykreslitHistorii(); vykreslit();
-            }
+        function setI(el, val) { 
+            document.querySelectorAll('.i-chip').forEach(c => c.classList.remove('chip-active')); 
+            el.classList.add('chip-active'); 
+            tmpIkona = val; 
         }
 
-        function potvrdit(id, cas) {
-            let k = id + "_" + cas;
-            if (vzato[k]) return;
-            let l = leky.find(x => x.id === id);
-            if (l.sklad < l.davka) { if(!confirm("Nedostatek skladem. Potvrdit?")) return; }
-            l.sklad = Math.round((l.sklad - l.davka) * 100) / 100;
-            if(l.sklad < 0) l.sklad = 0;
-            vzato[k] = true;
-            localStorage.setItem('Lekovka_V6', JSON.stringify(leky));
-            localStorage.setItem('Lekovka_Vzato_V6', JSON.stringify(vzato));
-            aktualizovatHistorii(); vykreslit();
+        function addT() { 
+            let v = document.getElementById('f-cas').value; 
+            if(v && !tmpCasy.includes(v)) { 
+                tmpCasy.push(v); 
+                tmpCasy.sort(); 
+                renderTmpT(); 
+            } 
         }
 
-        function aktualizovatHistorii() {
-            const n = new Date();
-            const dJmeno = ["Ne", "Po", "Út", "St", "Čt", "Pá", "So"][n.getDay()];
-            const dCislo = n.getDate();
-            let dnesniZaznamy = [];
-            leky.forEach(l => {
-                let ok = (!l.rezim && l.dny.length === 0) || (l.dny.includes(dJmeno)) || 
-                         (l.rezim === 'liche' && dCislo % 2 !== 0) || (l.rezim === 'sude' && dCislo % 2 === 0);
-                if (ok) l.casy.forEach(c => { dnesniZaznamy.push({ nazev: l.nazev, cas: c, vzano: vzato[l.id + "_" + c] || false }); });
-            });
-            dnesniZaznamy.sort((a, b) => a.cas.localeCompare(b.cas));
-            let index = historie.findIndex(h => h.datum === todayKey);
-            if (index !== -1) historie[index].data = dnesniZaznamy; else historie.unshift({ datum: todayKey, data: dnesniZaznamy });
-            if(historie.length > 7) historie.pop();
-            localStorage.setItem('Lekovka_Hist_V6', JSON.stringify(historie));
+        function renderTmpT() { 
+            document.getElementById('f-seznam-casu').innerHTML = tmpCasy.map(t => `<span onclick="removeT('${t}')" class="bg-amber-500/20 text-amber-500 px-2 py-1 rounded text-[10px] font-bold cursor-pointer">${t} ×</span>`).join(' '); 
         }
 
-        function vykreslitHistorii() {
-            aktualizovatHistorii();
-            let html = historie.map(h => `
-                <div class="hist-den ${h.datum === todayKey ? 'border-l-2 border-amber-500 pl-3' : 'opacity-60'}">
-                    <div class="text-[10px] font-bold uppercase mb-2 ${h.datum === todayKey ? 'text-amber-500' : 'text-slate-500'}">${h.datum}</div>
-                    ${h.data.map(d => `
-                        <div class="flex justify-between items-center text-xs mb-1">
-                            <span>${d.cas} - ${d.nazev}</span>
-                            <span class="iconify ${d.vzano ? 'text-emerald-500' : 'text-red-500'}" data-icon="${d.vzano ? 'lucide:check-circle' : 'lucide:x-circle'}"></span>
-                        </div>
-                    `).join('')}
-                </div>`).join('');
-            document.getElementById('seznam-historie').innerHTML = html || '<div class="text-center opacity-30 py-10 italic">Žádná historie</div>';
-        }
-
-        function exportDat() { console.log(JSON.stringify({leky, historie})); alert("Data v konzoli (F12)."); }
-        function setI(el, val) { document.querySelectorAll('.i-chip').forEach(c => c.classList.remove('chip-active')); el.classList.add('chip-active'); tmpIkona = val; }
-        function addT() { let v = document.getElementById('f-cas').value; if(v && !tmpCasy.includes(v)) { tmpCasy.push(v); tmpCasy.sort(); renderTmpT(); } }
-        function renderTmpT() { document.getElementById('f-seznam-casu').innerHTML = tmpCasy.map(t => `<span onclick="removeT('${t}')" class="bg-amber-500/20 text-amber-500 px-2 py-1 rounded text-[10px] font-bold cursor-pointer">${t} ×</span>`).join(' '); }
         function removeT(t) { tmpCasy = tmpCasy.filter(x => x !== t); renderTmpT(); }
-        
+
         function toggleD(el) { 
             document.querySelectorAll('.r-chip').forEach(r => r.classList.remove('chip-active')); 
             el.classList.toggle('chip-active'); 
         }
+
         function toggleR(el) { 
             let uzAktivni = el.classList.contains('chip-active'); 
             document.querySelectorAll('.d-chip, .r-chip').forEach(c => c.classList.remove('chip-active')); 
@@ -300,27 +179,52 @@
         }
 
         function resetForm() { 
-            document.getElementById('f-id').value = ''; document.getElementById('f-nazev').value = ''; 
-            document.getElementById('f-sklad').value = '0'; document.getElementById('f-davka').value = '1'; 
-            document.getElementById('edit-title').innerText = "Nový lék"; document.getElementById('btn-save').innerText = "Uložit lék"; 
-            document.getElementById('btn-cancel').classList.add('hidden'); tmpCasy = []; renderTmpT(); 
+            document.getElementById('f-id').value = ''; 
+            document.getElementById('f-nazev').value = ''; 
+            document.getElementById('f-sklad').value = '0'; 
+            document.getElementById('f-davka').value = '1'; 
+            document.getElementById('edit-title').innerText = "Nový lék"; 
+            document.getElementById('btn-save').innerText = "Uložit lék"; 
+            document.getElementById('btn-cancel').classList.add('hidden'); 
+            tmpCasy = []; 
+            renderTmpT(); 
+            tmpIkona = 'pill';
             document.querySelectorAll('.chip-active').forEach(c => c.classList.remove('chip-active'));
+            document.querySelector('[data-icon="pill"]').classList.add('chip-active');
         }
 
         function ulozit() { 
-            let n = document.getElementById('f-nazev').value; let editId = document.getElementById('f-id').value; 
+            let n = document.getElementById('f-nazev').value; 
+            let editId = document.getElementById('f-id').value; 
             if(!n || tmpCasy.length === 0) return alert("Zadejte název a čas!"); 
+            
             let data = { 
-                id: editId ? parseInt(editId) : Date.now(), ikona: tmpIkona, nazev: n, 
+                id: editId ? parseInt(editId) : Date.now(), 
+                ikona: tmpIkona, 
+                nazev: n, 
                 sklad: parseFloat(document.getElementById('f-sklad').value) || 0, 
                 davka: parseFloat(document.getElementById('f-davka').value) || 1, 
-                casy: [...tmpCasy], dny: Array.from(document.querySelectorAll('.d-chip.chip-active')).map(d => d.innerText), 
+                casy: [...tmpCasy], 
+                dny: Array.from(document.querySelectorAll('.d-chip.chip-active')).map(d => d.innerText), 
                 rezim: document.querySelector('.r-chip.chip-active')?.dataset.val || '' 
             }; 
-            if(editId) { let idx = leky.findIndex(x => x.id === parseInt(editId)); leky[idx] = data; } else { leky.push(data); } 
+
+            if(editId) { 
+                let idx = leky.findIndex(x => x.id === parseInt(editId)); 
+                leky[idx] = data; 
+            } else { 
+                leky.push(data); 
+            } 
+            
             localStorage.setItem('Lekovka_V6', JSON.stringify(leky)); 
-            synchronizovatSW(); 
-            resetForm(); nav('list'); 
+            
+            // Nová funkce: Nabídka kalendáře po uložení
+            if(confirm("Lék uložen. Chcete jej nyní přidat do kalendáře?")) {
+                downloadICS(data.nazev, data.casy);
+            }
+
+            resetForm(); 
+            nav('list'); 
         }
 
         function buildCard(l, casDnes = null) { 
@@ -328,7 +232,11 @@
             let pocetDavek = denniPocet > 0 ? (l.sklad / (l.davka * denniPocet)) : 0; 
             let kriticky = pocetDavek <= 2; 
             let jeVzato = casDnes ? vzato[l.id + "_" + casDnes] : false; 
-            let planText = l.rezim ? 'Obden ' + (l.rezim === 'sude' ? 'sudé' : 'liché') : (l.dny.length > 0 ? l.dny.join(', ') : 'Každý den'); 
+            let planText = l.rezim ? 'Obden ' + (l.rezim === 'sude' ? 'sudé' : 'liché') : (l.dny.length > 0 ? l.dny.join(', ') : 'Každý den');
+            
+            // Oprava uvozovek pro JSON stringify v onclicku
+            const casyJson = JSON.stringify(l.casy).replace(/"/g, '&quot;');
+            
             return `
                 <div class="lek-karta ${kriticky ? 'critical-border' : 'normal-border'} ${jeVzato ? 'vzano' : ''}">
                     <div class="flex justify-between items-start">
@@ -342,8 +250,13 @@
                                 </div>
                             </div>
                         </div>
-                        ${!casDnes ? `<div class="flex gap-2"><button onclick="editovatLek(${l.id})" class="text-amber-500/40 p-1"><span class="iconify text-xl" data-icon="lucide:edit-3"></span></button>
-                        <button onclick="smazat(${l.id})" class="text-red-500/20 p-1"><span class="iconify text-xl" data-icon="lucide:trash-2"></span></button></div>` : ''}
+                        <div class="flex gap-2">
+                            ${!casDnes ? `
+                                <button onclick="downloadICS('${l.nazev}', ${casyJson})" class="text-emerald-500/60 p-1"><span class="iconify text-xl" data-icon="lucide:calendar-plus"></span></button>
+                                <button onclick="editovatLek(${l.id})" class="text-amber-500/40 p-1"><span class="iconify text-xl" data-icon="lucide:edit-3"></span></button>
+                                <button onclick="smazat(${l.id})" class="text-red-500/20 p-1"><span class="iconify text-xl" data-icon="lucide:trash-2"></span></button>
+                            ` : ''}
+                        </div>
                     </div>
                     <div class="mt-3 text-[10px] space-y-1 bg-black/20 p-2 rounded-lg border border-white/5">
                         <div class="flex justify-between"><span class="text-slate-500 uppercase">Plán:</span><span class="text-slate-300 font-bold">${planText}</span></div>
@@ -354,27 +267,48 @@
         }
 
         function editovatLek(id) { 
-            let l = leky.find(x => x.id === id); resetForm(); nav('add'); 
-            document.getElementById('f-id').value = l.id; document.getElementById('f-nazev').value = l.nazev; 
-            document.getElementById('f-sklad').value = l.sklad; document.getElementById('f-davka').value = l.davka; 
-            tmpCasy = [...l.casy]; renderTmpT(); document.getElementById('edit-title').innerText = "Editace"; 
-            document.getElementById('btn-save').innerText = "Aktualizovat"; document.getElementById('btn-cancel').classList.remove('hidden'); 
+            let l = leky.find(x => x.id === id); 
+            resetForm(); 
+            nav('add'); 
+            document.getElementById('f-id').value = l.id; 
+            document.getElementById('f-nazev').value = l.nazev; 
+            document.getElementById('f-sklad').value = l.sklad; 
+            document.getElementById('f-davka').value = l.davka; 
+            tmpCasy = [...l.casy]; 
+            renderTmpT(); 
+            document.getElementById('edit-title').innerText = "Editace"; 
+            document.getElementById('btn-save').innerText = "Aktualizovat"; 
+            document.getElementById('btn-cancel').classList.remove('hidden'); 
             tmpIkona = l.ikona; 
+            document.querySelectorAll('.i-chip').forEach(c => {
+                if(c.dataset.icon === l.ikona) c.classList.add('chip-active');
+                else c.classList.remove('chip-active');
+            });
+            
+            if(l.rezim) {
+                document.querySelector(`.r-chip[data-val="${l.rezim}"]`)?.classList.add('chip-active');
+            } else {
+                document.querySelectorAll('.d-chip').forEach(c => {
+                    if(l.dny.includes(c.innerText)) c.classList.add('chip-active');
+                });
+            }
         }
 
-        function smazat(id) { if(confirm("Smazat?")) { leky = leky.filter(l => l.id !== id); localStorage.setItem('Lekovka_V6', JSON.stringify(leky)); synchronizovatSW(); vykreslit(); } }
-
-        function potvrditVseVCase(cas, ids) { ids.forEach(id => potvrdit(id, cas)); }
+        function smazat(id) { if(confirm("Smazat?")) { leky = leky.filter(l => l.id !== id); localStorage.setItem('Lekovka_V6', JSON.stringify(leky)); vykreslit(); } }
 
         function vykreslit() { 
-            const n = new Date(); const dJmeno = ["Ne", "Po", "Út", "St", "Čt", "Pá", "So"][n.getDay()]; const dCislo = n.getDate();
+            const n = new Date(); 
+            const dJmeno = ["Ne", "Po", "Út", "St", "Čt", "Pá", "So"][n.getDay()]; 
+            const dCislo = n.getDate();
             document.getElementById('today-date').innerText = dJmeno + " " + n.toLocaleDateString(); 
             document.getElementById('seznam-vse').innerHTML = leky.map(l => buildCard(l)).join('') || '<div class="opacity-20 py-10 italic text-center text-xs">Prázdno</div>'; 
+            
             let groups = {}; 
             leky.forEach(l => { 
                 let ok = (!l.rezim && l.dny.length === 0) || (l.dny.includes(dJmeno)) || (l.rezim === 'liche' && dCislo % 2 !== 0) || (l.rezim === 'sude' && dCislo % 2 === 0); 
                 if(ok) l.casy.forEach(c => { if(!groups[c]) groups[c] = []; groups[c].push(l); }); 
             }); 
+            
             let dnesHtml = ""; 
             Object.keys(groups).sort().forEach(cas => { 
                 let ids = groups[cas].filter(l => !vzato[l.id + "_" + cas]).map(l => l.id); 
@@ -386,8 +320,57 @@
             document.getElementById('seznam-dnes').innerHTML = dnesHtml || '<div class="opacity-20 py-10 italic text-center text-xs">Dnes nic</div>'; 
         }
 
+        function potvrdit(id, cas) {
+            let k = id + "_" + cas;
+            if (vzato[k]) return;
+            let l = leky.find(x => x.id === id);
+            if (l.sklad < l.davka) { if(!confirm("Nedostatek skladem. Potvrdit?")) return; }
+            l.sklad = Math.round((l.sklad - l.davka) * 100) / 100;
+            if(l.sklad < 0) l.sklad = 0;
+            vzato[k] = true;
+            localStorage.setItem('Lekovka_V6', JSON.stringify(leky));
+            localStorage.setItem('Lekovka_Vzato_V6', JSON.stringify(vzato));
+            vykreslit();
+        }
+
+        function potvrditVseVCase(cas, ids) { ids.forEach(id => potvrdit(id, cas)); }
+
+        function downloadICS(nazev, casy) {
+            let icsContent = "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//Moje Lekovka//CS\n";
+            const now = new Date();
+            const dateStr = now.toISOString().split('T')[0].replace(/-/g, '');
+            casy.forEach(cas => {
+                const timeStr = cas.replace(':', '') + "00";
+                icsContent += "BEGIN:VEVENT\n";
+                icsContent += `SUMMARY:Lék: ${nazev}\nDTSTART:${dateStr}T${timeStr}\nRRULE:FREQ=DAILY\n`;
+                icsContent += "BEGIN:VALARM\nTRIGGER:-PT5M\nACTION:DISPLAY\nEND:VALARM\nEND:VEVENT\n";
+            });
+            icsContent += "END:VCALENDAR";
+            const blob = new Blob([icsContent], { type: 'text/calendar' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `${nazev}.ics`;
+            link.click();
+        }
+
+        function exportAllICS() { leky.forEach(l => downloadICS(l.nazev, l.casy)); }
+        function exportDat() { console.log(JSON.stringify(leky)); alert("Data jsou v konzoli (F12)."); }
+
+        function vykreslitHistorii() {
+            let html = historie.map(h => `
+                <div class="hist-den">
+                    <div class="text-[10px] font-bold text-slate-500 mb-2">${h.datum}</div>
+                    ${h.data.map(d => `
+                        <div class="flex justify-between text-xs">
+                            <span>${d.cas} - ${d.nazev}</span>
+                            <span class="iconify ${d.vzano ? 'text-emerald-500' : 'text-red-500'}" data-icon="${d.vzano ? 'lucide:check-circle' : 'lucide:x-circle'}"></span>
+                        </div>
+                    `).join('')}
+                </div>`).join('');
+            document.getElementById('seznam-historie').innerHTML = html || '<div class="text-center opacity-30 py-10">Žádná historie</div>';
+        }
+
         nav('today');
-        window.addEventListener('load', updateNotifUI);
     </script>
 </body>
 </html>
