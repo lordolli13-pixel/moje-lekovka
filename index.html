@@ -7,11 +7,13 @@
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0f172a">
     <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     
     <script src="https://code.iconify.design/3/3.1.0/iconify.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    
     <style>
-        body { background-color: #0f172a; color: white; font-family: sans-serif; padding: 10px; }
+        body { background-color: #0f172a; color: white; font-family: sans-serif; padding: 10px; -webkit-tap-highlight-color: transparent; }
         .sekce { background-color: #1e293b; padding: 15px; border-radius: 15px; border: 1px solid #334155; margin-bottom: 20px; }
         .policko { background: #0f172a; border: 1px solid #475569; width: 100%; padding: 12px; border-radius: 8px; color: white; margin-bottom: 10px; outline: none; }
         .label { display: block; font-size: 10px; color: #94a3b8; text-transform: uppercase; font-weight: bold; margin-bottom: 5px; }
@@ -45,23 +47,9 @@
         </div>
 
         <div id="p-list" class="hidden">
-            <div class="sekce border-amber-500/30">
-                <h2 class="text-[10px] font-bold text-amber-500 mb-3 uppercase tracking-widest">Systém a Kalendář</h2>
-                <div class="grid grid-cols-2 gap-2">
-                    <button id="btn-notif-master" onclick="requestNotif()" class="bg-slate-700 p-3 rounded-lg text-[10px] font-bold uppercase flex flex-col items-center gap-1 transition-all duration-300">
-                        <span id="icon-notif" class="iconify text-lg" data-icon="lucide:bell"></span> 
-                        <span id="text-notif">Notifikace</span>
-                    </button>
-                    <button onclick="testNotif()" class="bg-slate-700 active:bg-amber-600 p-3 rounded-lg text-[10px] font-bold uppercase flex flex-col items-center gap-1 transition-all">
-                        <span class="iconify text-lg" data-icon="lucide:test-tube"></span> Test
-                    </button>
-                </div>
-                <div id="notif-status" class="text-[9px] text-center mt-2 text-slate-500 italic">Zjišťuji stav...</div>
-            </div>
-            
             <div id="seznam-vse" class="space-y-4"></div>
-            
-            <div class="mt-8 text-center">
+            <div class="mt-8 flex flex-col gap-4 items-center">
+                <button onclick="exportToICS()" class="text-[11px] bg-amber-500/10 text-amber-500 border border-amber-500/20 px-4 py-2 rounded-lg font-bold uppercase tracking-widest w-full">Export do kalendáře (.ics)</button>
                 <button onclick="exportDat()" class="text-[10px] text-slate-500 underline uppercase tracking-widest">Zálohovat data do konzole</button>
             </div>
         </div>
@@ -122,7 +110,7 @@
                     <div class="chip r-chip border-dashed border-amber-500/50" onclick="toggleR(this)" data-val="sude">OBDEN SUDÉ</div>
                 </div>
 
-                <button id="btn-save" onclick="ulozit()" class="btn-take">Uložit a vygenerovat kalendář</button>
+                <button id="btn-save" onclick="ulozit()" class="btn-take">Uložit lék</button>
                 <button id="btn-cancel" onclick="resetForm(); nav('list');" class="hidden w-full text-slate-500 text-[10px] uppercase font-bold mt-4">Zrušit editaci</button>
             </div>
         </div>
@@ -133,7 +121,6 @@
         let vzato = JSON.parse(localStorage.getItem('Lekovka_Vzato_V6')) || {};
         let historie = JSON.parse(localStorage.getItem('Lekovka_Hist_V6')) || [];
         let lastCheck = localStorage.getItem('Lekovka_LastDate_V6');
-        let notifiedTimes = {}; 
         let tmpIkona = 'pill';
         let tmpCasy = [];
 
@@ -145,145 +132,14 @@
         }
         localStorage.setItem('Lekovka_LastDate_V6', todayKey);
 
-        // --- EXPORT DO KALENDÁŘE (.ics) ---
-        function exportToCalendar(l) {
-            const dnyMap = { 'Po': 'MO', 'Út': 'TU', 'St': 'WE', 'Čt': 'TH', 'Pá': 'FR', 'So': 'SA', 'Ne': 'SU' };
-            let rrule = "";
-            
-            if (l.rezim === 'liche' || l.rezim === 'sude') {
-                rrule = "RRULE:FREQ=DAILY;INTERVAL=2";
-            } else if (l.dny.length > 0) {
-                const byday = l.dny.map(d => dnyMap[d]).join(',');
-                rrule = `RRULE:FREQ=WEEKLY;BYDAY=${byday}`;
-            } else {
-                rrule = "RRULE:FREQ=DAILY";
-            }
-
-            let icsContent = "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//MojeLekovka//CS\n";
-            
-            l.casy.forEach(cas => {
-                const [hh, mm] = cas.split(':');
-                const now = new Date();
-                // Nastavíme první událost na dnešek nebo zítřek v daný čas
-                let startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hh, mm, 0);
-                const stamp = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + "Z";
-                const startStr = startDate.toISOString().replace(/[-:]/g, '').split('.')[0] + "Z";
-
-                icsContent += "BEGIN:VEVENT\n";
-                icsContent += `UID:${l.id}_${cas.replace(':', '')}@lekovka\n`;
-                icsContent += `DTSTAMP:${stamp}\n`;
-                icsContent += `DTSTART:${startStr}\n`;
-                icsContent += `DURATION:PT15M\n`;
-                icsContent += `SUMMARY:Lék: ${l.nazev} (${l.davka}ks)\n`;
-                icsContent += `DESCRIPTION:Nezapomeňte si vzít lék ${l.nazev}. Dávkování: ${l.davka} ks.\n`;
-                icsContent += `${rrule}\n`;
-                icsContent += "BEGIN:VALARM\nTRIGGER:-PT5M\nACTION:DISPLAY\nDESCRIPTION:Reminder\nEND:VALARM\n";
-                icsContent += "END:VEVENT\n";
-            });
-
-            icsContent += "END:VCALENDAR";
-
-            const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
-            const link = document.createElement('a');
-            link.href = window.URL.createObjectURL(blob);
-            link.download = `${l.nazev}_kalendar.ics`;
-            link.click();
-        }
-
-        // --- PWA SERVICE WORKER REGISTRACE ---
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js').then(reg => {
-                    console.log('SW aktivní');
-                    synchronizovatSW();
-                }).catch(err => console.log('SW chyba', err));
-            });
-        }
-
-        async function synchronizovatSW() {
-            if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-                navigator.serviceWorker.controller.postMessage({
-                    type: 'UPDATE_MEDS',
-                    leky: leky
-                });
-            }
-        }
-
-        function updateNotifUI() {
-            const statusEl = document.getElementById('notif-status');
-            const btn = document.getElementById('btn-notif-master');
-            const icon = document.getElementById('icon-notif');
-            const text = document.getElementById('text-notif');
-
-            if (!("Notification" in window)) {
-                statusEl.innerText = "Nepodporováno";
-                return;
-            }
-
-            if (Notification.permission === 'granted') {
-                statusEl.innerText = "✓ Aktivní";
-                statusEl.className = "text-[9px] text-center mt-2 text-emerald-500 font-bold uppercase";
-                btn.classList.add('bg-emerald-600', 'text-white');
-                icon.setAttribute('data-icon', 'lucide:check-circle');
-            } else if (Notification.permission === 'denied') {
-                statusEl.innerText = "✕ Blokováno";
-                statusEl.className = "text-[9px] text-center mt-2 text-red-500 font-bold";
-            }
-        }
-
-        function requestNotif() {
-            Notification.requestPermission().then(perm => {
-                updateNotifUI();
-                if (perm === 'granted') {
-                    new Notification("Lékovka", { body: "Upozornění aktivována." });
-                    synchronizovatSW();
-                }
-            });
-        }
-
-        function testNotif() {
-            if (Notification.permission === "granted") {
-                new Notification("Test", { body: "Funguje to!" });
-            } else alert("Povolte notifikace!");
-        }
-
-        // Kontrola času pro aktivní okno
-        setInterval(() => {
-            const n = new Date();
-            const ted = n.getHours().toString().padStart(2, '0') + ":" + n.getMinutes().toString().padStart(2, '0');
-            const dJmeno = ["Ne", "Po", "Út", "St", "Čt", "Pá", "So"][n.getDay()];
-            const dCislo = n.getDate();
-
-            leky.forEach(l => {
-                let ok = (!l.rezim && l.dny.length === 0) || (l.dny.includes(dJmeno)) || 
-                         (l.rezim === 'liche' && dCislo % 2 !== 0) || (l.rezim === 'sude' && dCislo % 2 === 0);
-                
-                if (ok && l.casy.includes(ted)) {
-                    const key = `${l.id}_${ted}_${todayKey}`;
-                    if (!notifiedTimes[key] && !vzato[l.id + "_" + ted]) {
-                        new Notification("Čas na lék: " + l.nazev, { body: `Dávka: ${l.davka} ks.` });
-                        notifiedTimes[key] = true;
-                    }
-                }
-            });
-        }, 60000);
-
         function nav(p) {
             document.querySelectorAll('[id^="p-"]').forEach(d => d.classList.add('hidden'));
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('tab-active'));
             document.getElementById('p-' + p).classList.remove('hidden');
             document.getElementById('t-' + p).classList.add('tab-active');
-            if(p === 'today' || p === 'list') { vykreslit(); updateNotifUI(); }
+            if(p === 'today' || p === 'list') vykreslit();
             if(p === 'hist') vykreslitHistorii();
-        }
-
-        function promazatHistorii() {
-            if(confirm("Opravdu smazat?")) {
-                historie = []; vzato = {};
-                localStorage.setItem('Lekovka_Hist_V6', JSON.stringify(historie));
-                localStorage.setItem('Lekovka_Vzato_V6', JSON.stringify(vzato));
-                vykreslitHistorii(); vykreslit();
-            }
+            window.scrollTo(0,0);
         }
 
         function potvrdit(id, cas) {
@@ -296,7 +152,12 @@
             vzato[k] = true;
             localStorage.setItem('Lekovka_V6', JSON.stringify(leky));
             localStorage.setItem('Lekovka_Vzato_V6', JSON.stringify(vzato));
-            aktualizovatHistorii(); vykreslit();
+            aktualizovatHistorii(); 
+            vykreslit();
+        }
+
+        function potvrditVseVCase(cas, ids) {
+            ids.forEach(id => potvrdit(id, cas));
         }
 
         function aktualizovatHistorii() {
@@ -331,21 +192,21 @@
             document.getElementById('seznam-historie').innerHTML = html || '<div class="text-center opacity-30 py-10 italic">Žádná historie</div>';
         }
 
-        function exportDat() { console.log(JSON.stringify({leky, historie})); alert("Data v konzoli."); }
+        function promazatHistorii() {
+            if(confirm("Opravdu smazat historii?")) {
+                historie = []; vzato = {};
+                localStorage.setItem('Lekovka_Hist_V6', JSON.stringify(historie));
+                localStorage.setItem('Lekovka_Vzato_V6', JSON.stringify(vzato));
+                vykreslitHistorii(); vykreslit();
+            }
+        }
+
         function setI(el, val) { document.querySelectorAll('.i-chip').forEach(c => c.classList.remove('chip-active')); el.classList.add('chip-active'); tmpIkona = val; }
         function addT() { let v = document.getElementById('f-cas').value; if(v && !tmpCasy.includes(v)) { tmpCasy.push(v); tmpCasy.sort(); renderTmpT(); } }
         function renderTmpT() { document.getElementById('f-seznam-casu').innerHTML = tmpCasy.map(t => `<span onclick="removeT('${t}')" class="bg-amber-500/20 text-amber-500 px-2 py-1 rounded text-[10px] font-bold cursor-pointer">${t} ×</span>`).join(' '); }
         function removeT(t) { tmpCasy = tmpCasy.filter(x => x !== t); renderTmpT(); }
-        
-        function toggleD(el) { 
-            document.querySelectorAll('.r-chip').forEach(r => r.classList.remove('chip-active')); 
-            el.classList.toggle('chip-active'); 
-        }
-        function toggleR(el) { 
-            let uzAktivni = el.classList.contains('chip-active'); 
-            document.querySelectorAll('.d-chip, .r-chip').forEach(c => c.classList.remove('chip-active')); 
-            if(!uzAktivni) el.classList.add('chip-active'); 
-        }
+        function toggleD(el) { document.querySelectorAll('.r-chip').forEach(r => r.classList.remove('chip-active')); el.classList.toggle('chip-active'); }
+        function toggleR(el) { let uzAktivni = el.classList.contains('chip-active'); document.querySelectorAll('.d-chip, .r-chip').forEach(c => c.classList.remove('chip-active')); if(!uzAktivni) el.classList.add('chip-active'); }
 
         function resetForm() { 
             document.getElementById('f-id').value = ''; document.getElementById('f-nazev').value = ''; 
@@ -353,6 +214,7 @@
             document.getElementById('edit-title').innerText = "Nový lék"; document.getElementById('btn-save').innerText = "Uložit lék"; 
             document.getElementById('btn-cancel').classList.add('hidden'); tmpCasy = []; renderTmpT(); 
             document.querySelectorAll('.chip-active').forEach(c => c.classList.remove('chip-active'));
+            tmpIkona = 'pill';
         }
 
         function ulozit() { 
@@ -367,12 +229,6 @@
             }; 
             if(editId) { let idx = leky.findIndex(x => x.id === parseInt(editId)); leky[idx] = data; } else { leky.push(data); } 
             localStorage.setItem('Lekovka_V6', JSON.stringify(leky)); 
-            
-            if(confirm("Lék uložen. Chcete jej nyní přidat do kalendáře v telefonu/PC?")) {
-                exportToCalendar(data);
-            }
-
-            synchronizovatSW(); 
             resetForm(); nav('list'); 
         }
 
@@ -382,7 +238,6 @@
             let kriticky = pocetDavek <= 2; 
             let jeVzato = casDnes ? vzato[l.id + "_" + casDnes] : false; 
             let planText = l.rezim ? 'Obden ' + (l.rezim === 'sude' ? 'sudé' : 'liché') : (l.dny.length > 0 ? l.dny.join(', ') : 'Každý den'); 
-            
             return `
                 <div class="lek-karta ${kriticky ? 'critical-border' : 'normal-border'} ${jeVzato ? 'vzano' : ''}">
                     <div class="flex justify-between items-start">
@@ -396,13 +251,8 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="flex gap-1">
-                            ${!casDnes ? `
-                                <button onclick='exportToCalendar(${JSON.stringify(l)})' class="text-blue-400 p-1"><span class="iconify text-xl" data-icon="lucide:calendar-plus"></span></button>
-                                <button onclick="editovatLek(${l.id})" class="text-amber-500/40 p-1"><span class="iconify text-xl" data-icon="lucide:edit-3"></span></button>
-                                <button onclick="smazat(${l.id})" class="text-red-500/20 p-1"><span class="iconify text-xl" data-icon="lucide:trash-2"></span></button>
-                            ` : ''}
-                        </div>
+                        ${!casDnes ? `<div class="flex gap-2"><button onclick="editovatLek(${l.id})" class="text-amber-500/40 p-1"><span class="iconify text-xl" data-icon="lucide:edit-3"></span></button>
+                        <button onclick="smazat(${l.id})" class="text-red-500/20 p-1"><span class="iconify text-xl" data-icon="lucide:trash-2"></span></button></div>` : ''}
                     </div>
                     <div class="mt-3 text-[10px] space-y-1 bg-black/20 p-2 rounded-lg border border-white/5">
                         <div class="flex justify-between"><span class="text-slate-500 uppercase">Plán:</span><span class="text-slate-300 font-bold">${planText}</span></div>
@@ -419,9 +269,12 @@
             tmpCasy = [...l.casy]; renderTmpT(); document.getElementById('edit-title').innerText = "Editace"; 
             document.getElementById('btn-save').innerText = "Aktualizovat"; document.getElementById('btn-cancel').classList.remove('hidden'); 
             tmpIkona = l.ikona; 
+            document.querySelectorAll('.i-chip').forEach(c => { if(c.querySelector('.iconify').dataset.icon === 'lucide:'+l.ikona) c.classList.add('chip-active'); });
+            document.querySelectorAll('.d-chip').forEach(c => { if(l.dny.includes(c.innerText)) c.classList.add('chip-active'); });
+            if(l.rezim) { document.querySelectorAll('.r-chip').forEach(c => { if(c.dataset.val === l.rezim) c.classList.add('chip-active'); }); }
         }
 
-        function smazat(id) { if(confirm("Smazat?")) { leky = leky.filter(l => l.id !== id); localStorage.setItem('Lekovka_V6', JSON.stringify(leky)); synchronizovatSW(); vykreslit(); } }
+        function smazat(id) { if(confirm("Smazat lék?")) { leky = leky.filter(l => l.id !== id); localStorage.setItem('Lekovka_V6', JSON.stringify(leky)); vykreslit(); } }
 
         function vykreslit() { 
             const n = new Date(); const dJmeno = ["Ne", "Po", "Út", "St", "Čt", "Pá", "So"][n.getDay()]; const dCislo = n.getDate();
@@ -434,15 +287,47 @@
             }); 
             let dnesHtml = ""; 
             Object.keys(groups).sort().forEach(cas => { 
-                dnesHtml += `<div class="mb-8 border-b border-slate-700 pb-2 mb-4">
+                let ids = groups[cas].filter(l => !vzato[l.id + "_" + cas]).map(l => l.id); 
+                dnesHtml += `<div class="mb-8"><div class="flex justify-between items-center border-b border-slate-700 pb-2 mb-4">
                 <h3 class="text-xl font-black text-white flex items-center gap-2"><span class="iconify text-amber-500" data-icon="lucide:clock"></span> ${cas}</h3>
-                <div class="grid gap-2 mt-2">${groups[cas].map(l => buildCard(l, cas)).join('')}</div></div>`; 
+                ${ids.length > 0 ? `<button onclick="potvrditVseVCase('${cas}', [${ids.join(',')}])" class="btn-bulk">Vše</button>` : ''}</div>
+                <div class="grid gap-2">${groups[cas].map(l => buildCard(l, cas)).join('')}</div></div>`; 
             }); 
             document.getElementById('seznam-dnes').innerHTML = dnesHtml || '<div class="opacity-20 py-10 italic text-center text-xs">Dnes nic</div>'; 
         }
 
+        function exportToICS() {
+            if (leky.length === 0) return alert("Nemáš žádné léky k exportu.");
+            let ics = "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//MojeLekovka//CS\n";
+            leky.forEach(l => {
+                l.casy.forEach(cas => {
+                    const [h, m] = cas.split(':');
+                    const now = new Date();
+                    const start = now.toISOString().replace(/[-:]/g, '').split('.')[0].slice(0, 8) + "T" + h + m + "00";
+                    ics += "BEGIN:VEVENT\n";
+                    ics += `SUMMARY:Lék: ${l.nazev}\n`;
+                    ics += `DTSTART:${start}\n`;
+                    ics += "RRULE:FREQ=DAILY\n";
+                    ics += `DESCRIPTION:Dávka: ${l.davka}ks\n`;
+                    ics += "END:VEVENT\n";
+                });
+            });
+            ics += "END:VCALENDAR";
+            const blob = new Blob([ics], { type: 'text/calendar' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'leky.ics';
+            a.click();
+        }
+
+        function exportDat() { console.log(JSON.stringify({leky, historie})); alert("Data v konzoli (F12)."); }
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW selhal:', err));
+            });
+        }
         nav('today');
-        window.addEventListener('load', updateNotifUI);
     </script>
 </body>
 </html>
