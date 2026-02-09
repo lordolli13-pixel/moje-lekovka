@@ -1,67 +1,82 @@
-// Hlídač verze 7.0 - s vlastní pamětí
-const DB_NAME = "LekovkaDB";
-const STORE_NAME = "LekyStore";
+const CACHE_NAME = 'lekovka-v6';
 
-function getLekyZPameti() {
+// 1. Instalace a aktivace
+self.addEventListener('install', (e) => {
+    self.skipWaiting();
+});
+
+self.addEventListener('activate', (e) => {
+    e.waitUntil(clients.claim());
+});
+
+// 2. Funkce pro načtení léků z IndexedDB
+async function getLekyFromDB() {
     return new Promise((resolve) => {
-        const request = indexedDB.open(DB_NAME, 1);
-        request.onupgradeneeded = (e) => {
-            e.target.result.createObjectStore(STORE_NAME);
-        };
+        const request = indexedDB.open("LekovkaDB", 1);
         request.onsuccess = (e) => {
             const db = e.target.result;
-            const transaction = db.transaction(STORE_NAME, "readonly");
-            const store = transaction.objectStore(STORE_NAME);
-            const getReq = store.get("aktualni_leky");
-            getReq.onsuccess = () => resolve(getReq.result || []);
+            try {
+                const tx = db.transaction("LekyStore", "readonly");
+                const store = tx.objectStore("LekyStore");
+                const getReq = store.get("aktualni_leky");
+                getReq.onsuccess = () => resolve(getReq.result || []);
+                getReq.onerror = () => resolve([]);
+            } catch (err) {
+                resolve([]);
+            }
         };
         request.onerror = () => resolve([]);
     });
 }
 
-async function hlidac() {
-    const leky = await getLekyZPameti();
-    if (!leky || leky.length === 0) return;
+// 3. Smyčka pro kontrolu času (běží na pozadí)
+let posledniMinuta = "";
 
+setInterval(async () => {
     const n = new Date();
     const ted = n.getHours().toString().padStart(2, '0') + ":" + n.getMinutes().toString().padStart(2, '0');
+    
+    // Kontrola, aby se v rámci jedné minuty neposlalo víc notifikací
+    if (ted === posledniMinuta) return;
+    posledniMinuta = ted;
+
     const dJmeno = ["Ne", "Po", "Út", "St", "Čt", "Pá", "So"][n.getDay()];
     const dCislo = n.getDate();
-    const dnes = n.toLocaleDateString();
+    const leky = await getLekyFromDB();
 
     leky.forEach(l => {
-        let ok = (!l.rezim && (l.dny.length === 0 || l.dny.includes(dJmeno))) || 
-                 (l.rezim === 'liche' && dCislo % 2 !== 0) || 
-                 (l.rezim === 'sude' && dCislo % 2 === 0);
+        // Kontrola dne (tvá logika: dny v týdnu / liché-sudé / každý den)
+        let okDnes = (!l.rezim && (l.dny.length === 0 || l.dny.includes(dJmeno))) || 
+                     (l.rezim === 'liche' && dCislo % 2 !== 0) || 
+                     (l.rezim === 'sude' && dCislo % 2 === 0);
 
-        if (ok && l.casy.includes(ted)) {
-            const klic = `notif_${l.id}_${ted}_${dnes}`;
-            // Použijeme self.registration pro zobrazení
-            self.registration.getNotifications({tag: klic}).then(existujici => {
-                if (existujici.length === 0) {
-                    self.registration.showNotification("💊 Čas na lék: " + l.nazev, {
-                        body: `Dávka: ${l.davka}. Prosím, vezměte si svůj lék.`,
-                        tag: klic,
-                        icon: 'icon-192.png',
-                        badge: 'icon-192.png',
-                        vibrate: [500, 200, 500],
-                        requireInteraction: true,
-                        data: { url: self.registration.scope }
-                    });
-                }
+        if (okDnes && l.casy.includes(ted)) {
+            self.registration.showNotification("Čas na lék: " + l.nazev, {
+                body: `Dávka: ${l.davka} ks.`,
+                icon: 'icon-192.png', // ujisti se, že máš tento soubor na serveru
+                vibrate: [200, 100, 200],
+                badge: 'icon-192.png',
+                tag: `notif-${l.id}-${ted}`, // zamezí duplicitám
+                renotify: true
             });
         }
     });
-}
+}, 30000); // Kontrola každých 30 vteřin
 
-// Kontrola každých 30 vteřin
-setInterval(hlidac, 30000);
-
-self.addEventListener('install', () => self.skipWaiting());
-self.addEventListener('activate', (e) => e.waitUntil(clients.claim()));
-
-// Reakce na kliknutí na notifikaci - otevře aplikaci
+// 4. Obsluha kliknutí na notifikaci
 self.addEventListener('notificationclick', (e) => {
     e.notification.close();
-    e.waitUntil(clients.openWindow(e.notification.data.url));
+    e.waitUntil(
+        clients.matchAll({ type: 'window' }).then((clientList) => {
+            if (clientList.length > 0) return clientList[0].focus();
+            return clients.openWindow('./');
+        })
+    );
+});
+
+// 5. Příjem zpráv z hlavní aplikace (okamžitá aktualizace)
+self.addEventListener('message', (e) => {
+    if (e.data && e.data.type === 'UPDATE_MEDS') {
+        console.log("SW: Léky aktualizovány");
+    }
 });
