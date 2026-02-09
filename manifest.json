@@ -1,15 +1,17 @@
 {
   "name": "Moje Lékovka",
   "short_name": "Lékovka",
-  "start_url": "index.html",
+  "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#0f172a",
   "theme_color": "#0f172a",
+  "description": "Chytrý asistent pro správu léků a zásob.",
   "icons": [
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/822/822143.png",
+      "src": "icon-512.jpg",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/jpeg",
+      "purpose": "any maskable"
     }
   ]
 }
