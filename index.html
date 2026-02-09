@@ -146,6 +146,7 @@
             let k = id + "_" + cas;
             if (vzato[k]) return;
             let l = leky.find(x => x.id === id);
+            if (!l) return;
             if (l.sklad < l.davka) { if(!confirm("Nedostatek skladem. Potvrdit?")) return; }
             l.sklad = Math.round((l.sklad - l.davka) * 100) / 100;
             if(l.sklad < 0) l.sklad = 0;
@@ -299,50 +300,55 @@
         function exportToICS() {
             if (!leky || leky.length === 0) return alert("Nemáš žádné léky k exportu.");
             
-            let icsLines = [
+            let icsContent = [
                 "BEGIN:VCALENDAR",
                 "VERSION:2.0",
                 "PRODID:-//MojeLekovka//CS",
                 "CALSCALE:GREGORIAN",
                 "METHOD:PUBLISH"
-            ];
+            ].join("\r\n") + "\r\n";
 
             leky.forEach(l => {
                 l.casy.forEach(cas => {
                     const [h, m] = cas.split(':');
                     const now = new Date();
-                    const dateStr = now.getFullYear() + 
-                                    String(now.getMonth() + 1).padStart(2, '0') + 
-                                    String(now.getDate()).padStart(2, '0');
-                    const start = dateStr + "T" + h.padStart(2, '0') + m.padStart(2, '0') + "00";
+                    const year = now.getFullYear();
+                    const month = String(now.getMonth() + 1).padStart(2, '0');
+                    const day = String(now.getDate()).padStart(2, '0');
+                    const stamp = year + month + day + "T" + h.padStart(2, '0') + m.padStart(2, '0') + "00";
 
-                    icsLines.push("BEGIN:VEVENT");
-                    icsLines.push(`SUMMARY:Užít lék: ${l.nazev}`);
-                    icsLines.push(`DTSTART:${start}`);
-                    icsLines.push(`DTEND:${start}`);
-                    icsLines.push("RRULE:FREQ=DAILY");
-                    icsLines.push(`DESCRIPTION:Dávka: ${l.davka}ks. Skladem: ${l.sklad}ks.`);
-                    icsLines.push("END:VEVENT");
+                    icsContent += [
+                        "BEGIN:VEVENT",
+                        `UID:${Date.now()}-${l.id}@mojelekovka.local`,
+                        `DTSTAMP:${stamp}`,
+                        `DTSTART:${stamp}`,
+                        `SUMMARY:Užít lék: ${l.nazev}`,
+                        `DESCRIPTION:Dávka: ${l.davka}ks. Skladem: ${l.sklad}ks.`,
+                        "RRULE:FREQ=DAILY",
+                        "BEGIN:VALARM",
+                        "TRIGGER:-PT0M",
+                        "ACTION:DISPLAY",
+                        `DESCRIPTION:Čas na lék: ${l.nazev}`,
+                        "END:VALARM",
+                        "END:VEVENT"
+                    ].join("\r\n") + "\r\n";
                 });
             });
 
-            icsLines.push("END:VCALENDAR");
+            icsContent += "END:VCALENDAR";
 
-            const icsText = icsLines.join("\n");
-            const blob = new Blob([icsText], { type: 'text/calendar;charset=utf-8' });
-            const url = URL.createObjectURL(blob);
-            
-            const downloadLink = document.createElement('a');
-            downloadLink.href = url;
-            downloadLink.download = 'pripominky_leky.ics';
-            
-            document.body.appendChild(downloadLink);
-            downloadLink.click();
+            const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', 'lekovka_kalendar.ics');
+            document.body.appendChild(link);
+            link.click();
             
             setTimeout(() => {
-                document.body.removeChild(downloadLink);
-                URL.revokeObjectURL(url);
-            }, 100);
+                document.body.removeChild(link);
+                window.URL.revokeObjectURL(url);
+            }, 200);
         }
 
         function exportDat() { console.log(JSON.stringify({leky, historie})); alert("Data v konzoli (F12)."); }
