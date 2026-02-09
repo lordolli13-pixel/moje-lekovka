@@ -145,12 +145,11 @@
         }
         localStorage.setItem('Lekovka_LastDate_V6', todayKey);
 
-        // --- PWA SERVICE WORKER REGISTRACE & SYNC ---
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('sw.js').then(reg => {
                     console.log('SW aktivní');
-                    synchronizovatSW();
+                    setTimeout(synchronizovatSW, 1000);
                 }).catch(err => console.log('SW chyba', err));
             });
         }
@@ -164,32 +163,21 @@
             }
         }
 
-        // --- NOTIFIKACE UI LOGIKA ---
         function updateNotifUI() {
             const statusEl = document.getElementById('notif-status');
             const btn = document.getElementById('btn-notif-master');
             const icon = document.getElementById('icon-notif');
             const text = document.getElementById('text-notif');
-
-            if (!("Notification" in window)) {
-                statusEl.innerText = "Prohlížeč nepodporuje notifikace";
-                return;
-            }
-
+            if (!("Notification" in window)) { statusEl.innerText = "Nepodporováno"; return; }
             if (Notification.permission === 'granted') {
                 statusEl.innerText = "✓ Notifikace aktivní";
                 statusEl.className = "text-[9px] text-center mt-2 text-emerald-500 font-bold uppercase";
-                btn.classList.remove('bg-slate-700');
-                btn.classList.add('bg-emerald-600', 'text-white');
+                btn.classList.replace('bg-slate-700', 'bg-emerald-600');
                 icon.setAttribute('data-icon', 'lucide:check-circle');
                 text.innerText = "Aktivováno";
             } else if (Notification.permission === 'denied') {
-                statusEl.innerText = "✕ Notifikace blokovány";
-                statusEl.className = "text-[9px] text-center mt-2 text-red-500 font-bold";
+                statusEl.innerText = "✕ Blokováno";
                 text.innerText = "Blokováno";
-            } else {
-                statusEl.innerText = "Notifikace nejsou aktivní";
-                statusEl.className = "text-[9px] text-center mt-2 text-slate-500 italic";
             }
         }
 
@@ -197,7 +185,7 @@
             Notification.requestPermission().then(perm => {
                 updateNotifUI();
                 if (perm === 'granted') {
-                    new Notification("Lékovka", { body: "Upozornění byla zapnuta." });
+                    new Notification("Lékovka", { body: "Upozornění zapnuta." });
                     synchronizovatSW();
                 }
             });
@@ -205,45 +193,21 @@
 
         function testNotif() {
             if (Notification.permission === "granted") {
-                new Notification("Test Lékovky", { body: "Takhle vypadá upozornění!" });
-            } else {
-                alert("Nejdříve zapněte notifikace!");
-            }
+                new Notification("Test", { body: "Funguje to!" });
+            } else { alert("Zapněte notifikace!"); }
         }
 
-        // Kontrola času (Fallback, když je aplikace otevřená)
-        setInterval(() => {
-            const n = new Date();
-            const ted = n.getHours().toString().padStart(2, '0') + ":" + n.getMinutes().toString().padStart(2, '0');
-            const dJmeno = ["Ne", "Po", "Út", "St", "Čt", "Pá", "So"][n.getDay()];
-            const dCislo = n.getDate();
-
-            leky.forEach(l => {
-                let ok = (!l.rezim && l.dny.length === 0) || (l.dny.includes(dJmeno)) || 
-                         (l.rezim === 'liche' && dCislo % 2 !== 0) || (l.rezim === 'sude' && dCislo % 2 === 0);
-                
-                if (ok && l.casy.includes(ted)) {
-                    const key = `${l.id}_${ted}_${todayKey}`;
-                    if (!notifiedTimes[key] && !vzato[l.id + "_" + ted]) {
-                        new Notification("Čas na lék: " + l.nazev, { body: `Dávka: ${l.davka} ks.` });
-                        notifiedTimes[key] = true;
-                    }
-                }
-            });
-        }, 60000);
-
-        // --- OSTATNÍ FUNKCE ---
         function nav(p) {
             document.querySelectorAll('[id^="p-"]').forEach(d => d.classList.add('hidden'));
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('tab-active'));
             document.getElementById('p-' + p).classList.remove('hidden');
             document.getElementById('t-' + p).classList.add('tab-active');
-            if(p === 'today' || p === 'list') { vykreslit(); updateNotifUI(); }
+            if(p === 'today' || p === 'list') vykreslit();
             if(p === 'hist') vykreslitHistorii();
         }
 
         function promazatHistorii() {
-            if(confirm("Opravdu smazat?")) {
+            if(confirm("Smazat?")) {
                 historie = []; vzato = {};
                 localStorage.setItem('Lekovka_Hist_V6', JSON.stringify(historie));
                 localStorage.setItem('Lekovka_Vzato_V6', JSON.stringify(vzato));
@@ -255,13 +219,15 @@
             let k = id + "_" + cas;
             if (vzato[k]) return;
             let l = leky.find(x => x.id === id);
-            if (l.sklad < l.davka) { if(!confirm("Nedostatek skladem. Potvrdit?")) return; }
-            l.sklad = Math.round((l.sklad - l.davka) * 100) / 100;
-            if(l.sklad < 0) l.sklad = 0;
+            l.sklad = Math.max(0, Math.round((l.sklad - l.davka) * 100) / 100);
             vzato[k] = true;
             localStorage.setItem('Lekovka_V6', JSON.stringify(leky));
             localStorage.setItem('Lekovka_Vzato_V6', JSON.stringify(vzato));
             aktualizovatHistorii(); vykreslit();
+        }
+
+        function potvrditVseVCase(cas, ids) {
+            ids.forEach(id => potvrdit(id, cas));
         }
 
         function aktualizovatHistorii() {
@@ -290,27 +256,18 @@
                         <div class="flex justify-between items-center text-xs mb-1">
                             <span>${d.cas} - ${d.nazev}</span>
                             <span class="iconify ${d.vzano ? 'text-emerald-500' : 'text-red-500'}" data-icon="${d.vzano ? 'lucide:check-circle' : 'lucide:x-circle'}"></span>
-                        </div>
-                    `).join('')}
+                        </div>`).join('')}
                 </div>`).join('');
             document.getElementById('seznam-historie').innerHTML = html || '<div class="text-center opacity-30 py-10 italic">Žádná historie</div>';
         }
 
-        function exportDat() { console.log(JSON.stringify({leky, historie})); alert("Data v konzoli (F12)."); }
+        function exportDat() { console.log(JSON.stringify({leky, historie})); alert("Data v konzoli."); }
         function setI(el, val) { document.querySelectorAll('.i-chip').forEach(c => c.classList.remove('chip-active')); el.classList.add('chip-active'); tmpIkona = val; }
         function addT() { let v = document.getElementById('f-cas').value; if(v && !tmpCasy.includes(v)) { tmpCasy.push(v); tmpCasy.sort(); renderTmpT(); } }
         function renderTmpT() { document.getElementById('f-seznam-casu').innerHTML = tmpCasy.map(t => `<span onclick="removeT('${t}')" class="bg-amber-500/20 text-amber-500 px-2 py-1 rounded text-[10px] font-bold cursor-pointer">${t} ×</span>`).join(' '); }
         function removeT(t) { tmpCasy = tmpCasy.filter(x => x !== t); renderTmpT(); }
-        
-        function toggleD(el) { 
-            document.querySelectorAll('.r-chip').forEach(r => r.classList.remove('chip-active')); 
-            el.classList.toggle('chip-active'); 
-        }
-        function toggleR(el) { 
-            let uzAktivni = el.classList.contains('chip-active'); 
-            document.querySelectorAll('.d-chip, .r-chip').forEach(c => c.classList.remove('chip-active')); 
-            if(!uzAktivni) el.classList.add('chip-active'); 
-        }
+        function toggleD(el) { document.querySelectorAll('.r-chip').forEach(r => r.classList.remove('chip-active')); el.classList.toggle('chip-active'); }
+        function toggleR(el) { let uzAktivni = el.classList.contains('chip-active'); document.querySelectorAll('.d-chip, .r-chip').forEach(c => c.classList.remove('chip-active')); if(!uzAktivni) el.classList.add('chip-active'); }
 
         function resetForm() { 
             document.getElementById('f-id').value = ''; document.getElementById('f-nazev').value = ''; 
@@ -322,7 +279,7 @@
 
         function ulozit() { 
             let n = document.getElementById('f-nazev').value; let editId = document.getElementById('f-id').value; 
-            if(!n || tmpCasy.length === 0) return alert("Zadejte název a čas!"); 
+            if(!n || tmpCasy.length === 0) return alert("Chybí název nebo čas!"); 
             let data = { 
                 id: editId ? parseInt(editId) : Date.now(), ikona: tmpIkona, nazev: n, 
                 sklad: parseFloat(document.getElementById('f-sklad').value) || 0, 
@@ -332,8 +289,7 @@
             }; 
             if(editId) { let idx = leky.findIndex(x => x.id === parseInt(editId)); leky[idx] = data; } else { leky.push(data); } 
             localStorage.setItem('Lekovka_V6', JSON.stringify(leky)); 
-            synchronizovatSW(); 
-            resetForm(); nav('list'); 
+            synchronizovatSW(); resetForm(); nav('list'); 
         }
 
         function buildCard(l, casDnes = null) { 
@@ -397,8 +353,8 @@
             document.getElementById('seznam-dnes').innerHTML = dnesHtml || '<div class="opacity-20 py-10 italic text-center text-xs">Dnes nic</div>'; 
         }
 
-        nav('today');
         window.addEventListener('load', updateNotifUI);
+        vykreslit();
     </script>
 </body>
 </html>
