@@ -1,47 +1,67 @@
-let lekyData = [];
-let odeslano = new Set();
+// Hlídač verze 7.0 - s vlastní pamětí
+const DB_NAME = "LekovkaDB";
+const STORE_NAME = "LekyStore";
 
-// Načtení dat při startu
-self.addEventListener('message', (event) => {
-    if (event.data && event.data.type === 'UPDATE_MEDS') {
-        lekyData = event.data.leky;
-    }
-});
+function getLekyZPameti() {
+    return new Promise((resolve) => {
+        const request = indexedDB.open(DB_NAME, 1);
+        request.onupgradeneeded = (e) => {
+            e.target.result.createObjectStore(STORE_NAME);
+        };
+        request.onsuccess = (e) => {
+            const db = e.target.result;
+            const transaction = db.transaction(STORE_NAME, "readonly");
+            const store = transaction.objectStore(STORE_NAME);
+            const getReq = store.get("aktualni_leky");
+            getReq.onsuccess = () => resolve(getReq.result || []);
+        };
+        request.onerror = () => resolve([]);
+    });
+}
 
-function hlidac() {
+async function hlidac() {
+    const leky = await getLekyZPameti();
+    if (!leky || leky.length === 0) return;
+
     const n = new Date();
-    // Samsung/Android někdy posouvá čas o pár vteřin, 
-    // proto kontrolujeme aktuální minutu i tu předchozí
     const ted = n.getHours().toString().padStart(2, '0') + ":" + n.getMinutes().toString().padStart(2, '0');
     const dJmeno = ["Ne", "Po", "Út", "St", "Čt", "Pá", "So"][n.getDay()];
     const dCislo = n.getDate();
     const dnes = n.toLocaleDateString();
 
-    if (lekyData.length === 0) return;
-
-    lekyData.forEach(l => {
+    leky.forEach(l => {
         let ok = (!l.rezim && (l.dny.length === 0 || l.dny.includes(dJmeno))) || 
                  (l.rezim === 'liche' && dCislo % 2 !== 0) || 
                  (l.rezim === 'sude' && dCislo % 2 === 0);
 
         if (ok && l.casy.includes(ted)) {
-            const klic = `${l.id}_${ted}_${dnes}`;
-            if (!odeslano.has(klic)) {
-                self.registration.showNotification("💊 Čas na lék: " + l.nazev, {
-                    body: `Dávka: ${l.davka}. Nezapomeňte si vzít léky.`,
-                    tag: klic,
-                    renotify: true,
-                    vibrate: [500, 110, 500],
-                    requireInteraction: true // Notifikace nezmizí, dokud ji neodmázneš
-                });
-                odeslano.add(klic);
-            }
+            const klic = `notif_${l.id}_${ted}_${dnes}`;
+            // Použijeme self.registration pro zobrazení
+            self.registration.getNotifications({tag: klic}).then(existujici => {
+                if (existujici.length === 0) {
+                    self.registration.showNotification("💊 Čas na lék: " + l.nazev, {
+                        body: `Dávka: ${l.davka}. Prosím, vezměte si svůj lék.`,
+                        tag: klic,
+                        icon: 'icon-192.png',
+                        badge: 'icon-192.png',
+                        vibrate: [500, 200, 500],
+                        requireInteraction: true,
+                        data: { url: self.registration.scope }
+                    });
+                }
+            });
         }
     });
 }
 
-// Spouštíme častěji (každých 20 vteřin), aby Samsung nestihl usnout
-setInterval(hlidac, 20000);
+// Kontrola každých 30 vteřin
+setInterval(hlidac, 30000);
 
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (e) => e.waitUntil(clients.claim()));
+
+// Reakce na kliknutí na notifikaci - otevře aplikaci
+self.addEventListener('notificationclick', (e) => {
+    e.notification.close();
+    e.waitUntil(clients.openWindow(e.notification.data.url));
+});
