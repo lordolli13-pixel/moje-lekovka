@@ -3,52 +3,91 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Test Budík</title>
+    <title>DEBUG BUDÍK</title>
     <link rel="manifest" href="manifest.json">
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .status-box { background: #1e293b; border-radius: 12px; padding: 15px; margin-top: 20px; width: 100%; }
+        .log-line { font-family: monospace; font-size: 12px; border-bottom: 1px solid #334155; padding: 4px 0; }
+    </style>
 </head>
-<body class="bg-slate-900 text-white flex flex-col items-center justify-center min-h-screen p-5">
+<body class="bg-slate-950 text-white p-6 flex flex-col items-center min-h-screen">
 
-    <h1 class="text-2xl font-bold mb-5">Test Budíku</h1>
-    
-    <input type="time" id="cas" class="bg-slate-800 border border-slate-700 p-4 rounded-xl text-3xl mb-5">
-    
-    <button onclick="nastavitBudik()" class="bg-blue-600 hover:bg-blue-500 px-8 py-4 rounded-xl font-bold uppercase tracking-wider">
-        Nastavit budík
-    </button>
+    <h1 class="text-3xl font-bold text-blue-400 mb-2">DEBUG BUDÍK</h1>
+    <p class="text-slate-400 text-sm mb-8 text-center">Pokud toto nepípne, je problém v systému Android.</p>
 
-    <div id="status" class="mt-10 text-slate-400 text-sm italic text-center"></div>
+    <div class="bg-slate-900 p-6 rounded-2xl shadow-xl border border-slate-800 w-full max-w-sm">
+        <label class="block text-xs uppercase tracking-widest text-slate-500 mb-2">Nastavit čas pípnutí</label>
+        <input type="time" id="casBudiku" class="w-full bg-slate-800 text-4xl p-4 rounded-xl border border-blue-500/30 text-center mb-4 focus:border-blue-500 outline-none">
+        
+        <button onclick="aktivovat()" class="w-full bg-blue-600 active:scale-95 transition-transform py-4 rounded-xl font-bold text-lg shadow-lg shadow-blue-900/20">
+            ZAPNOUT BUDÍK
+        </button>
+    </div>
+
+    <div class="status-box max-w-sm">
+        <h2 class="text-blue-400 font-bold text-sm mb-2 uppercase">Stav systému:</h2>
+        <div id="sw-status" class="text-yellow-500 text-sm mb-1">Čekám na Service Worker...</div>
+        <div id="permission-status" class="text-sm"></div>
+        <div id="last-check" class="text-xs text-slate-500 mt-2 font-monospace"></div>
+    </div>
+
+    <div class="status-box max-w-sm overflow-hidden">
+        <h2 class="text-green-400 font-bold text-sm mb-2 uppercase">Poslední události:</h2>
+        <div id="logs" class="max-h-40 overflow-y-auto"></div>
+    </div>
 
     <script>
-        // Registrace SW
+        // Pomocná funkce pro logování na obrazovku
+        function log(msg) {
+            const div = document.createElement('div');
+            div.className = 'log-line';
+            div.innerText = `${new Date().toLocaleTimeString()} - ${msg}`;
+            const container = document.getElementById('logs');
+            container.insertBefore(div, container.firstChild);
+        }
+
+        // 1. Registrace SW
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js').then(() => {
-                document.getElementById('status').innerText = 'Systém připraven (SW aktivní)';
-            });
+            navigator.serviceWorker.register('sw.js?v=' + Date.now())
+            .then(reg => {
+                document.getElementById('sw-status').innerText = '✓ Service Worker je aktivní';
+                document.getElementById('sw-status').className = 'text-green-500 text-sm mb-1';
+                log('SW zaregistrován');
+            })
+            .catch(err => log('CHYBA SW: ' + err));
         }
 
-        // Žádost o notifikace
-        function nastavitBudik() {
-            const vybranyCas = document.getElementById('cas').value;
-            if (!vybranyCas) return alert('Vyber čas!');
+        // 2. Aktivace a oprávnění
+        async function aktivovat() {
+            const cas = document.getElementById('casBudiku').value;
+            if(!cas) return alert('Vyber čas!');
 
-            Notification.requestPermission().then(perm => {
-                if (perm === 'granted') {
-                    // Poslat čas do Service Workera
-                    if (navigator.serviceWorker.controller) {
-                        navigator.serviceWorker.controller.postMessage({
-                            type: 'SET_ALARM',
-                            time: vybranyCas
-                        });
-                        alert('Budík nastaven na ' + vybranyCas + '. Teď aplikaci zavři a počkej.');
-                    } else {
-                        alert('Chyba: SW ještě neřídí stránku. Zkus stránku obnovit (F5).');
-                    }
+            const perm = await Notification.requestPermission();
+            document.getElementById('permission-status').innerText = `Notifikace: ${perm}`;
+            
+            if(perm === 'granted') {
+                if(navigator.serviceWorker.controller) {
+                    navigator.serviceWorker.controller.postMessage({
+                        type: 'START_ALARM',
+                        time: cas
+                    });
+                    log(`Budík odeslán do SW: ${cas}`);
+                    alert(`Nastaveno na ${cas}. Nech aplikaci běžet na pozadí.`);
                 } else {
-                    alert('Musíš povolit notifikace!');
+                    alert('Chyba: SW není připraven. Zkus obnovit stránku.');
                 }
-            });
+            } else {
+                alert('Musíš povolit oznámení v nastavení prohlížeče!');
+            }
         }
+
+        // Příjem zpráv ze SW (pro debugování)
+        navigator.serviceWorker.addEventListener('message', (event) => {
+            if(event.data.type === 'TICK') {
+                document.getElementById('last-check').innerText = `SW naposledy kontroloval čas: ${event.data.time}`;
+            }
+        });
     </script>
 </body>
 </html>
