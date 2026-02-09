@@ -1,15 +1,16 @@
 let lekyProKontrolu = [];
-let posledniNotifikace = {}; // Paměť, aby to nepípalo každou sekundu ve stejnou minutu
+let odeslaneNotifikace = new Set();
 
 self.addEventListener('message', (event) => {
     if (event.data && event.data.type === 'UPDATE_MEDS') {
         lekyProKontrolu = event.data.leky;
-        console.log('SW: Seznam léků aktualizován pro pozadí');
+        console.log("SW: Data aktualizována", lekyProKontrolu.length);
     }
 });
 
-// Tato funkce běží v SW na pozadí
-function kontrolaCasu() {
+function kontrolaLeku() {
+    if (lekyProKontrolu.length === 0) return;
+
     const n = new Date();
     const ted = n.getHours().toString().padStart(2, '0') + ":" + n.getMinutes().toString().padStart(2, '0');
     const dJmeno = ["Ne", "Po", "Út", "St", "Čt", "Pá", "So"][n.getDay()];
@@ -17,38 +18,33 @@ function kontrolaCasu() {
     const dnesniDatum = n.toLocaleDateString();
 
     lekyProKontrolu.forEach(l => {
-        // Kontrola, zda je dnes správný den (režim nebo dny v týdnu)
+        // Logika pro dny a režim (shodná s HTML)
         let ok = (!l.rezim && (l.dny.length === 0 || l.dny.includes(dJmeno))) || 
                  (l.rezim === 'liche' && dCislo % 2 !== 0) || 
                  (l.rezim === 'sude' && dCislo % 2 === 0);
-        
+
         if (ok && l.casy.includes(ted)) {
-            const idNotifikace = `${l.id}_${ted}_${dnesniDatum}`;
+            const idNotif = `${l.id}_${ted}_${dnesniDatum}`;
             
-            // Pošli notifikaci jen pokud jsme ji v tuto minutu ještě neposlali
-            if (!posledniNotifikace[idNotifikace]) {
-                self.registration.showNotification("Čas na lék: " + l.nazev, {
+            if (!odeslaneNotifikace.has(idNotif)) {
+                self.registration.showNotification("💊 Čas na lék: " + l.nazev, {
                     body: `Dávka: ${l.davka} ks. Nezapomeňte na své léky!`,
-                    icon: 'icon-192.png', // nahraď svou ikonou pokud máš
+                    icon: 'icon-192.png',
                     badge: 'icon-192.png',
-                    tag: idNotifikace, // zabrání duplicitám v liště
+                    tag: idNotif,
                     renotify: true,
                     vibrate: [200, 100, 200]
                 });
-                posledniNotifikace[idNotifikace] = true;
+                odeslaneNotifikace.add(idNotif);
             }
         }
     });
+
+    // Jednou za hodinu vyčistit paměť notifikací
+    if (n.getMinutes() === 0) odeslaneNotifikace.clear();
 }
 
-// Spustit kontrolu každých 30 sekund
-setInterval(kontrolaCasu, 30000);
+setInterval(kontrolaLeku, 30000);
 
-// Nutné pro aktivaci SW ihned po registraci
-self.addEventListener('install', (event) => {
-    self.skipWaiting();
-});
-
-self.addEventListener('activate', (event) => {
-    event.waitUntil(clients.claim());
-});
+self.addEventListener('install', (e) => self.skipWaiting());
+self.addEventListener('activate', (e) => e.waitUntil(clients.claim()));
