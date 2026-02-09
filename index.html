@@ -137,7 +137,6 @@
         }
         localStorage.setItem('Lekovka_LastDate_V6', todayKey);
 
-        // PWA Service Worker Registration
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('sw.js').catch(err => console.log('SW error', err));
@@ -245,7 +244,7 @@
                 icsContent += `DTSTART:${dateStr}T${timeStr}\n`;
                 icsContent += `DTEND:${dateStr}T${timeStr}\n`;
                 icsContent += "RRULE:FREQ=DAILY\n";
-                icsContent += "BEGIN:VALARM\nTRIGGER:-PT5M\nACTION:DISPLAY\nDESCRIPTION:Čas užít lék\nEND:VALARM\n";
+                icsContent += "BEGIN:VALARM\nTRIGGER:-PT0M\nACTION:DISPLAY\nDESCRIPTION:Čas užít lék\nEND:VALARM\n";
                 icsContent += "END:VEVENT\n";
             });
             
